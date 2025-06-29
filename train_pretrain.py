@@ -6,6 +6,7 @@ from models.transformer_lm import MiniTransformerLM
 from datasets import load_dataset
 from torch.nn.functional import cross_entropy
 import math
+import os
 
 # Configuración
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -82,3 +83,10 @@ for epoch in range(1, num_epochs + 1):
     print(f"Distinct-1: {d1:.4f}")
     print(f"Distinct-2: {d2:.4f}")
     print("=" * 30)
+
+# Guardar pesos del modelo
+output_path = "checkpoints/minitransformer.pt"
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+torch.save(model.state_dict(), output_path)
+print(f"Modelo {vocab_model} guardado en {output_path} después de {epoch} épocas.")
+
