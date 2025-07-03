@@ -12,3 +12,9 @@ Este proyecto implementa el preentrenamiento ligero de un modelo de lenguaje (LL
 - Definir un modelo Transformer pequeño y entrenarlo
 - Registrar métricas como perplexity y distinct-1/distinct-2 durante el entrenamiento
 - Generar texto corto a partir del modelo y analizar su coherencia
+
+## Dataset
+Se utilizó el corpus TinyStories, disponible en Hugging Face: [TinyStories](https://huggingface.co/datasets/roneneldan/TinyStories/tree/main), que contiene cuentos cortos generados sintéticamente por modelos GPT-3.5 y GPT-4.
+
+En este proyecto se trabajó con la versión inicial TinyStories-train.txt, que incluye textos generados por ambos modelos
+
