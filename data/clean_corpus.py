@@ -1,20 +1,26 @@
+"""
+Este script limpia un corpus de texto plano y lo divide en fragmentos de tamaño fijo.
+Los fragmentos se guardan en un archivo JSONL, que luego será usado para entrenar
+el modelo de lenguaje.
+"""
+
 import os
 import json
 from typing import List
 from transformers import AutoTokenizer
 
 # Parametros de entrada
-RUTA_ENTRADA = "data/TinyStoriesV2-GPT4-train.txt"
+RUTA_ENTRADA = "data/corpus.txt"
 RUTA_SALIDA = "data/train.jsonl"
 TAMANIO_CHUNK = 128
-MAX_LINEAS = 10000  # Cambia si quieres menos
+MAX_LINEAS = 10000 
 
 # Tokenizador
 tokenizer = AutoTokenizer.from_pretrained("gpt2")
 
 def cargar_texto(ruta_archivo: str, max_lineas: int = None) -> List[str]:
     """
-    Lee un archivo de texto línea por línea y elimina líneas vacías.
+    Lee un archivo de texto línea por línea y elimina líneas vacías
     """
     with open(ruta_archivo, 'r', encoding='utf-8') as f:
         lineas = f.readlines()
@@ -24,13 +30,14 @@ def cargar_texto(ruta_archivo: str, max_lineas: int = None) -> List[str]:
 
 def limpiar_texto(lineas: List[str]) -> List[str]:
     """
-    Limpia caracteres especiales y espacios múltiples de cada línea.
+    Elimina saltos de línea y convierte espacios múltiples en un solo espacio
     """
+
     return [' '.join(linea.replace('\n', ' ').split()) for linea in lineas]
 
 def dividir_en_chunks(lineas: List[str], tamanio: int) -> List[str]:
     """
-    Une el texto completo, tokeniza y divide en fragmentos de tamaño fijo.
+    Une el texto completo, tokeniza y divide en fragmentos de tamaño fijo
     """
     tokens = tokenizer(" ".join(lineas), return_tensors=None)["input_ids"]
     chunks = [tokens[i:i+tamanio] for i in range(0, len(tokens), tamanio)
@@ -39,7 +46,7 @@ def dividir_en_chunks(lineas: List[str], tamanio: int) -> List[str]:
 
 def guardar_chunks(chunks: List[str], ruta_salida: str):
     """
-    Guarda una lista de fragmentos en un archivo JSONL con campo 'text'.
+    Guarda una lista de fragmentos en un archivo JSONL con campo 'text'
     """
     with open(ruta_salida, 'w', encoding='utf-8') as f:
         for chunk in chunks:
