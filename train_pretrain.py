@@ -1,3 +1,8 @@
+"""
+Este script entrena el modelo MiniTransformerLM usando un corpus JSONL.
+Registra la pérdida (loss), perplexity y las métricas de diversidad distinct-1 y distinct-2.
+"""
+
 import torch
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
@@ -8,18 +13,17 @@ from torch.nn.functional import cross_entropy
 import math
 import os
 
-# Configuración
+# Configuración inicial
 device = "cuda" if torch.cuda.is_available() else "cpu"
 vocab_model = "gpt2"
 batch_size = 4
 num_epochs = 5
 lr = 5e-4
 
-# Tokenizer
+# Tokenizer y dataset
 tokenizer = AutoTokenizer.from_pretrained(vocab_model)
 tokenizer.pad_token = tokenizer.eos_token
 
-# Dataset
 dataset = load_dataset("json", data_files="data/train.jsonl", split="train")
 collator = CustomDataCollator(tokenizer, mlm_probability=0.15)
 loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collator)
@@ -35,8 +39,11 @@ model = MiniTransformerLM(
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 
-# Métricas de diversidad
+# Métrica distinct-n (para evaluar diversidad del texto)
 def distinct_n(seqs, n):
+    """
+    Calcula el ratio de n-gramas distintos en una lista de secuencias.
+    """
     total_ngrams = 0
     unique_ngrams = set()
     for seq in seqs:
@@ -47,7 +54,7 @@ def distinct_n(seqs, n):
         unique_ngrams.update(ngrams)
     return len(unique_ngrams) / total_ngrams if total_ngrams > 0 else 0
 
-# Entrenamiento
+# Loop de entrenamiento
 model.train()
 for epoch in range(1, num_epochs + 1):
     total_loss = 0
@@ -66,7 +73,7 @@ for epoch in range(1, num_epochs + 1):
         optimizer.step()
 
         total_loss += loss.item()
-        all_labels.extend([l[l != -100] for l in labels])  # solo tokens válidos
+        all_labels.extend([l[l != -100] for l in labels])
 
         if (step + 1) % 100 == 0:
             print(f"[Epoch {epoch} | Step {step+1}] Loss: {loss.item():.4f}")
@@ -84,9 +91,8 @@ for epoch in range(1, num_epochs + 1):
     print(f"Distinct-2: {d2:.4f}")
     print("=" * 30)
 
-# Guardar pesos del modelo
-output_path = "checkpoints/minitransformer.pt"
+# Guardar el modelo
+output_path = f"checkpoints/minitransformer_epoch{epoch}.pt"
 os.makedirs(os.path.dirname(output_path), exist_ok=True)
 torch.save(model.state_dict(), output_path)
 print(f"Modelo {vocab_model} guardado en {output_path} después de {epoch} épocas.")
-
