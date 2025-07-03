@@ -1,3 +1,8 @@
+"""
+Este script carga el modelo MiniTransformerLM ya entrenado y genera texto corto.
+Calcula las métricas de diversidad distinct-1 y distinct-2 sobre los textos generados.
+"""
+
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -6,36 +11,33 @@ import torch
 import torch.nn.functional as F
 from transformers import AutoTokenizer
 from models.transformer_lm import MiniTransformerLM
-import os
 
 # Configuración
 device = "cuda" if torch.cuda.is_available() else "cpu"
 vocab_model = "gpt2"
 script_dir = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(script_dir, "..", "checkpoints", "minitransformer.pt")
-max_tokens = 128
 num_samples = 5
-top_k = 50
+top_k = 10   
 temperature = 1.0
 
-# Tokenizer
+# Tokenizer y modelo
 tokenizer = AutoTokenizer.from_pretrained(vocab_model)
 tokenizer.pad_token = tokenizer.eos_token
 
-# Modelo
 model = MiniTransformerLM(
     vocab_size=tokenizer.vocab_size,
     d_model=256,
     n_heads=4,
     n_layers=4,
-    max_len=max_tokens
+    max_len=128
 ).to(device)
 
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-# Función de generación
-def generar_texto(prompt="", max_len=100, top_k=50, temperature=1.0):
+# Genera texto a partir de un prompt inicial
+def generar_texto(prompt="", max_len=100, top_k=10, temperature=1.0):
     if not prompt.strip():
         prompt = tokenizer.eos_token
 
@@ -57,7 +59,7 @@ def generar_texto(prompt="", max_len=100, top_k=50, temperature=1.0):
 
     return tokenizer.decode(ids[0], skip_special_tokens=True)
 
-# Métricas de diversidad
+# Calcula métricas distinct-n
 def distinct_n(seqs, n):
     total_ngrams = 0
     unique_ngrams = set()
@@ -69,18 +71,38 @@ def distinct_n(seqs, n):
         unique_ngrams.update(ngrams)
     return len(unique_ngrams) / total_ngrams if total_ngrams > 0 else 0
 
-# Ejecución principal
+# Ejecuta la generación y calcula diversidad
 if __name__ == "__main__":
     resultados = []
+
+    resultados_sin_prompt = []
+    resultados_con_prompt = []
+
+    print("\nGeneración SIN prompt:")
     for _ in range(num_samples):
-        texto = generar_texto("", max_len=max_tokens, top_k=top_k, temperature=temperature)
+        texto = generar_texto("", max_len=128, top_k=top_k, temperature=temperature)
         print("-" * 30)
         print(texto)
-        resultados.append(texto)
+        resultados_sin_prompt.append(texto)
 
-    d1 = distinct_n(resultados, 1)
-    d2 = distinct_n(resultados, 2)
+    print("\nGeneración CON prompt 'The little cat':")
+    for _ in range(num_samples):
+        texto = generar_texto("The little cat", max_len=50, top_k=top_k, temperature=temperature)
+        print("-" * 30)
+        print(texto)
+        resultados_con_prompt.append(texto)
 
-    print("\nMétricas de diversidad:")
-    print(f"Distinct-1: {d1:.4f}")
-    print(f"Distinct-2: {d2:.4f}")
+    d1_sin = distinct_n(resultados_sin_prompt, 1)
+    d2_sin = distinct_n(resultados_sin_prompt, 2)
+
+    d1_con = distinct_n(resultados_con_prompt, 1)
+    d2_con = distinct_n(resultados_con_prompt, 2)
+
+    print("\nMétricas de diversidad SIN prompt:")
+    print(f"Distinct-1: {d1_sin:.4f}")
+    print(f"Distinct-2: {d2_sin:.4f}")
+
+    print("\nMétricas de diversidad CON prompt:")
+    print(f"Distinct-1: {d1_con:.4f}")
+    print(f"Distinct-2: {d2_con:.4f}")
+
