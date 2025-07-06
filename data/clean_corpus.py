@@ -2,23 +2,30 @@
 Este script limpia un corpus de texto plano y lo divide en fragmentos de tamaño fijo.
 Los fragmentos se guardan en un archivo JSONL, que luego será usado para entrenar
 el modelo de lenguaje.
+
+Parámetros ajustables:
+- TAMANIO_CHUNK controla el balance entre cobertura del contexto y consumo de memoria.
+  - Chunk grande: más contexto, más memoria
+  - Chunk pequeño: menos contexto, menos memoria, más variedad de ejemplos
 """
+
 
 import os
 import json
 from typing import List
 from transformers import AutoTokenizer
+import re
 
 # Parametros de entrada
 RUTA_ENTRADA = "data/corpus.txt"
 RUTA_SALIDA = "data/train.jsonl"
-TAMANIO_CHUNK = 128
+TAMANIO_CHUNK = 512
 MAX_LINEAS = 10000 
 
 # Tokenizador
 tokenizer = AutoTokenizer.from_pretrained("gpt2")
 
-def cargar_texto(ruta_archivo: str, max_lineas: int = None) -> List[str]:
+def cargar_texto(ruta_archivo: str, max_lineas: int) -> List[str]:
     """
     Lee un archivo de texto línea por línea y elimina líneas vacías
     """
@@ -30,10 +37,17 @@ def cargar_texto(ruta_archivo: str, max_lineas: int = None) -> List[str]:
 
 def limpiar_texto(lineas: List[str]) -> List[str]:
     """
-    Elimina saltos de línea y convierte espacios múltiples en un solo espacio
+    Elimina saltos de línea, convierte espacios múltiples en uno solo y filtra caracteres no ASCII
     """
-
-    return [' '.join(linea.replace('\n', ' ').split()) for linea in lineas]
+    texto_limpio = []
+    for linea in lineas:
+        # Elimina saltos de línea y espacios múltiples
+        linea = ' '.join(linea.replace('\n', ' ').split())
+        # Filtra caracteres no ASCII
+        linea = re.sub(r'[^\x00-\x7F]+', '', linea)
+        if linea:
+            texto_limpio.append(linea)
+    return texto_limpio
 
 def dividir_en_chunks(lineas: List[str], tamanio: int) -> List[str]:
     """
@@ -58,9 +72,9 @@ def main():
         print(f"No se encontró el archivo: {RUTA_ENTRADA}")
         return
 
-    lineas = cargar_texto(RUTA_ENTRADA, max_lineas=MAX_LINEAS)
+    lineas = cargar_texto(RUTA_ENTRADA, MAX_LINEAS)
     texto_limpio = limpiar_texto(lineas)
-    chunks = dividir_en_chunks(texto_limpio, tamanio=TAMANIO_CHUNK)
+    chunks = dividir_en_chunks(texto_limpio, TAMANIO_CHUNK)
     guardar_chunks(chunks, RUTA_SALIDA)
     print(f"Guardado {len(chunks)} fragmentos en {RUTA_SALIDA}")
 

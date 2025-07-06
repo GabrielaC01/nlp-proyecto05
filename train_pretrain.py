@@ -26,7 +26,7 @@ tokenizer.pad_token = tokenizer.eos_token
 
 dataset = load_dataset("json", data_files="data/train.jsonl", split="train")
 collator = CustomDataCollator(tokenizer, mlm_probability=0.15)
-loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collator)
+loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collator) # type: ignore
 
 # Modelo
 model = MiniTransformerLM(
@@ -34,7 +34,7 @@ model = MiniTransformerLM(
     d_model=256,
     n_heads=4,
     n_layers=4,
-    max_len=128
+    max_len=512
 ).to(device)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -53,6 +53,10 @@ def distinct_n(seqs, n):
         total_ngrams += len(ngrams)
         unique_ngrams.update(ngrams)
     return len(unique_ngrams) / total_ngrams if total_ngrams > 0 else 0
+
+# Callback para guardar el mejor checkpoint según PPL
+best_ppl = float("inf")
+best_ckpt_path = None
 
 # Loop de entrenamiento
 model.train()
@@ -91,8 +95,11 @@ for epoch in range(1, num_epochs + 1):
     print(f"Distinct-2: {d2:.4f}")
     print("=" * 30)
 
-# Guardar el modelo
-output_path = f"checkpoints/minitransformer_epoch{epoch}.pt"
-os.makedirs(os.path.dirname(output_path), exist_ok=True)
-torch.save(model.state_dict(), output_path)
-print(f"Modelo {vocab_model} guardado en {output_path} después de {epoch} épocas.")
+    # Guardar el mejor checkpoint según PPL
+    if ppl < best_ppl:
+        best_ppl = ppl
+        best_ckpt_path = f"checkpoints/best_minitransformer.pt"
+        os.makedirs(os.path.dirname(best_ckpt_path), exist_ok=True)
+        torch.save(model.state_dict(), best_ckpt_path)
+        print(f"Mejor checkpoint guardado en {best_ckpt_path} durante la epoch {epoch} (PPL={best_ppl:.2f})")
+
